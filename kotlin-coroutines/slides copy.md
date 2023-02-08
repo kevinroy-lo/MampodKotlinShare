@@ -25,60 +25,50 @@ transition: slide-left
 css: unocss
 ---
 
-# 玩转Kotlin协程
+# Welcome to Slidev
 
-分享人：罗广荣
+Presentation slides for developers
 
 <div class="pt-12">
   <span @click="$slidev.nav.next" class="px-2 py-1 rounded cursor-pointer" hover="bg-white bg-opacity-10">
-    Next <carbon:arrow-right class="inline"/>
+    Press Space for next page <carbon:arrow-right class="inline"/>
   </span>
 </div>
 
 <div class="abs-br m-6 flex gap-2">
-  <a href="https://github.com/kevinroy-lo/MampodKotlinShare" target="_blank" alt="GitHub"
+  <button @click="$slidev.nav.openInEditor()" title="Open in Editor" class="text-xl slidev-icon-btn opacity-50 !border-none !hover:text-white">
+    <carbon:edit />
+  </button>
+  <a href="https://github.com/slidevjs/slidev" target="_blank" alt="GitHub"
     class="text-xl slidev-icon-btn opacity-50 !border-none !hover:text-white">
     <carbon-logo-github />
   </a>
 </div>
 
 <!--
-这里备注：可以在播放的时候准备好讲述词
-
+The last comment block of each slide will be treated as slide notes. It will be visible and editable in Presenter Mode along with the slide. [Read more in the docs](https://sli.dev/guide/syntax.html#notes)
 -->
 
 ---
 transition: fade-out
 ---
 
-# 一、快速入门
-### 协程是什么？
-<br>
+# What is Slidev?
 
-> wiki：Coroutines are computer program components that allow execution to be suspended and resumed, generalizing subroutines for cooperative multitasking. Coroutines are well-suited for implementing familiar program components such as cooperative tasks, exceptions, event loops, iterators, infinite lists and pipes.
+Slidev is a slides maker and presenter designed for developers, consist of the following features
 
-<br>
-
->协同程序是允许暂停和恢复执行的计算机程序组件，概括了用于协作多任务处理的子程序。 协程非常适合实现熟悉的程序组件，例如协作任务、异常、事件循环、迭代器、无限列表和管道。
-
-<br/>
-简单来说：
-
-- 协程是一种**非抢占式或者说协作式**的计算机程序并发调度的实现，程序可以主动挂起或者恢复执行。
-
-
-<!-- - 📝 **Text-based** - focus on the content with Markdown, and then style them later
+- 📝 **Text-based** - focus on the content with Markdown, and then style them later
 - 🎨 **Themable** - theme can be shared and used with npm packages
 - 🧑‍💻 **Developer Friendly** - code highlighting, live coding with autocompletion
 - 🤹 **Interactive** - embedding Vue components to enhance your expressions
 - 🎥 **Recording** - built-in recording and camera view
 - 📤 **Portable** - export into PDF, PNGs, or even a hostable SPA
-- 🛠 **Hackable** - anything possible on a webpage -->
+- 🛠 **Hackable** - anything possible on a webpage
 
 <br>
 <br>
 
-Read more about [Kotlin Coroutine?](https://en.wikipedia.org/wiki/Coroutine)
+Read more about [Why Slidev?](https://sli.dev/guide/why)
 
 <!--
 You can have `style` tag in markdown to override the style for the current page.
@@ -105,9 +95,11 @@ Here is another comment.
 transition: slide-up
 ---
 
-# 
-## 线程 vs 协程
+# Navigation
 
+Hover on the bottom-left corner to see the navigation's controls panel, [learn more](https://sli.dev/guide/navigation.html)
+
+### Keyboard Shortcuts
 
 |     |     |
 | --- | --- |
