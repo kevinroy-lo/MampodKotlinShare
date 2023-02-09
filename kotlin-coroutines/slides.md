@@ -104,17 +104,361 @@ Here is another comment.
 ---
 transition: slide-up
 ---
+### 协程的启动方式(1)
+1、runBlocking{} (runBlocking启动的协程任务会阻断当前线程，直到该协程执行结束)
+<v-click>
 
-# 
-## 线程 vs 协程
+```kotlin {2|all}
+fun main() {
+    runBlocking {
+        println("running in ：${Thread.currentThread().name}")
+        delay(1000)
+    }
+    println("running in ：${Thread.currentThread().name}")
+}
+// running in ：main
+// running in ：main
+```
+</v-click>
+
+2、GlobalScope.launch{}
+<v-after>
+
+```kotlin {1|2|all}
+fun main() = runBlocking {
+    launch {
+        delay(600)
+        println("running in ：${Thread.currentThread().name}")
+    }.join()
+    println("running in ：${Thread.currentThread().name}")
+}
+// running in ：DefaultDispatcher-worker-1
+// running in ：main
+```
+</v-after>
+
+---
+transition: slide-up
+---
+### 协程的启动方式(2)
+
+3、async/await
+
+<v-after>
+
+```kotlin {2|all}
+fun main() = runBlocking {
+    val job = async {
+        println("start -> ${Thread.currentThread().name}")
+    }
+    job.await()
+    println("start -> ${Thread.currentThread().name}")
+}
+// start -> main
+// start -> main
+```
+</v-after>
+---
 
 
-|     |     |
-| --- | --- |
-| <kbd>right</kbd> / <kbd>space</kbd>| next animation or slide |
-| <kbd>left</kbd>  / <kbd>shift</kbd><kbd>space</kbd> | previous animation or slide |
-| <kbd>up</kbd> | previous slide |
-| <kbd>down</kbd> | next slide |
+### 协程启动模式
+<br>
+
+启动协程需要三样东西，分别是 **上下文、启动模式、协程体**，以launch为例，介绍一下协程的启动模式
+
+
+```kotlin {3}
+public fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext,
+    start: CoroutineStart = CoroutineStart.DEFAULT, // 启动模式
+    block: suspend CoroutineScope.() -> Unit
+): Job
+```
+<br>
+
+- 🎨 **DEFAULT** - *立即执行协程体*
+- 🧑 **LAZY**    -  *只有在有必要的情况下才执行协程体*
+- 🤹 **ATOMIC**  - *立即执行协程体，但在开始运行之前无法取消*
+- 🎥 **UNDISPATCHED** - *立即在当前线程执行协程体，直到第一个suspend调用*
+
+
+---
+
+### 协程启动模式 - DEFAULT
+<br>
+```kotlin
+suspend fun main() {
+    log(1)
+    val job = GlobalScope.launch {
+        log(2)
+    }
+    log(3)
+    job.join()
+    log(4)
+}
+// 14:18:05:453 [main] 1
+// 14:18:05:467 [main] 3
+// 14:18:05:467 [DefaultDispatcher-worker-1] 2
+// 14:18:05:471 [main] 4
+```
+
+- 由前面我们知道，默认的模式为DEFAULT，在JVM后台，有专门的线程池去执行任务
+- 2 和 3 的输出先后顺序是不确定的
+
+---
+
+### 协程启动模式 - LAZY
+
+> LAZY 是懒汉式启动，launch 后并不会有任何调度行为，协程体也不会进入执行状态，直到我们需要它执行的时候。
+```kotlin
+suspend fun main() {
+    log(1)
+    val job = GlobalScope.launch(start = CoroutineStart.LAZY) {
+        log(2)
+    }
+    log(3)
+    job.start()
+    log(4)
+}
+// 14:56:28:374 [main] 1
+// 14:56:28:493 [main] 3
+// 14:56:28:511 [main] 4
+// 14:56:28:516 [DefaultDispatcher-worker-1] 2
+
+```
+
+对于LAZY，有2种方法可以触发协程体执行
+- 调用 Job.start，主动触发协程的调度执行
+  - 例子中，1，3的顺序是确定的，**2，4将不确定**
+- 调用 Job.join，隐式的触发协程的调度执行
+  - **2，4是确定的**，join方法会挂起当前协程，直到job完成
+
+---
+
+### 协程启动模式 - ATOMIC
+
+> ATOMIC 只有涉及 cancel 的时候才有意义,在到达第一个挂起点前，不会检查是否取消
+```kotlin
+suspend fun main() {
+    log(1)
+    val job = GlobalScope.launch(start = CoroutineStart.ATOMIC) {
+        log(2)  
+        delay(1000)
+        log(3)
+    }
+    job.cancel()
+    log(4)
+    job.join()
+}
+```
+<br/>
+注意：
+
+- 在DEFAULT下，由于cancel，可能协程被取消不会打印。输出：1、（2）、4
+- 但在ATOMIC模式下，一定会执行。输出：1、2、4（**non-cancellable way**）
+
+---
+
+### 协程启动模式 - UNDISPATCHED
+
+> 协程在这种模式下会直接开始**在当前线程下执行，直到第一个挂起点**，这听起来有点儿像前面的 ATOMIC，不同之**处在于 UNDISPATCHED 不经过任何调度器即开始执行协程体**。
+```kotlin
+suspend fun main() {
+    log(1)
+    val job = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED) {
+        log(2)
+        delay(100)
+        log(3)
+    }
+    log(4)
+    job.join()
+    log(5)
+}
+// 14:57:53:331 [main] 1
+// 14:57:53:361 [main] 2
+// 14:57:53:369 [main] 4
+// 14:57:53:484 [DefaultDispatcher-worker-1] 3
+// 14:57:53:486 [DefaultDispatcher-worker-1] 5
+```
+<br/>
+
+<p class="think">想一想，在job执行完后，3和5的打印为什么在同一线程中？</p>
+
+<style>
+.think{
+  font-size:22px;
+  color:red;
+}
+</style>
+
+
+---
+layout: two-cols
+---
+
+## 解惑
+<p class="think">3和5的打印为什么在同一线程中？</p>
+
+```kotlin
+suspend fun main() {
+    log(1)
+    val job = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED) {
+        log(2)
+        delay(100)
+        log(3)
+    }
+    log(4)
+    job.join()
+    log(5)
+}
+// 14:57:53:331 [main] 1
+// 14:57:53:361 [main] 2
+// 14:57:53:369 [main] 4
+// 14:57:53:484 [DefaultDispatcher-worker-1] 3
+// 14:57:53:486 [DefaultDispatcher-worker-1] 5
+```
+
+::right::
+
+
+## RunSuspend
+
+<p  class="think" >1</p>
+
+```kotlin
+private class RunSuspend : Continuation<Unit> {
+    override val context: CoroutineContext get() = EmptyCoroutineContext
+    var result: Result<Unit>? = null
+    override fun resumeWith(result: Result<Unit>) = synchronized(this) {
+        this.result = result
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") (this as Object).notifyAll()
+    }
+    // ...
+} 
+```
+
+**由于runBlocking这种启动方式，并没有设置调度器，会在最后调试的线程中恢复过来**
+
+
+
+<style>
+.think{
+  font-size:22px;
+  color:red;
+}
+</style>
+
+
+
+---
+
+## 协程调度器（Dispatchers）
+
+<br>
+
+> 上下文的子类，同时实现了拦截器的接口， dispatch 方法会在拦截器的方法 interceptContinuation 中调用，进而实现协程的调度。
+
+- 🎈Default       --  **线程池**
+- 🎄Main          --  **UI线程（Android）**
+- 🎭Unconfined    --  **直接执行(在启动协程中执行)**
+- ✨IO            --  **线程池**
+
+<br>
+
+IO 仅在 Jvm 上有定义，它基于 Default 调度器背后的线程池，并实现了独立的队列和限制，因此协程调度器从 Default 切换到 IO 并不会触发线程切换。
+
+
+---
+layout: two-cols
+---
+## 调度节点
+
+```kotlin
+suspend fun main() {
+    GlobalScope.launch(MyContinuationInterceptor()) {
+        log(1)
+        val job = async {
+            log(2)
+            delay(1000)
+            log(3)
+            "Hello"
+        }
+        log(4)
+        val result = job.await()
+        log("5. $result")
+    }.join()
+    log(6)
+}
+// 15:31:55:989 [main] <MyContinuation> Success(kotlin.Unit)  // ①
+// 15:31:55:992 [main] 1
+// 15:31:56:000 [main] <MyContinuation> Success(kotlin.Unit) // ②
+// 15:31:56:000 [main] 2
+// 15:31:56:031 [main] 4
+// 15:31:57:029 [kotlinx.coroutines.DefaultExecutor] <MyContinuation> Success(kotlin.Unit) // ③
+// 15:31:57:029 [kotlinx.coroutines.DefaultExecutor] 3
+// 15:31:57:031 [kotlinx.coroutines.DefaultExecutor] <MyContinuation> Success(Hello) // ④
+// 15:31:57:031 [kotlinx.coroutines.DefaultExecutor] 5. Hello
+// 15:31:57:031 [kotlinx.coroutines.DefaultExecutor] 6
+```
+
+::right::
+
+<br>
+
+**右边的例子中，调度器回调了4次**
+- 1、刚启动时，会被调度一次,launch、async.
+- 2、如上
+- 3、delay 是挂起点，1000ms 之后需要继续调度执行该协程，调度器调度到这个线程
+- 4、返回结果时
+
+<br>
+
+**🧐思考：**
+
+- 这里要注意的一个点是，2为什么在4的前面输出？
+- 如果给 async 指定了调度器，又会是什么情形？
+
+Read more about [Kotlin Dispatchers?](https://www.bennyhuo.com/2019/04/11/coroutine-dispatchers/)
+
+
+---
+
+# 示例其他代码
+
+
+```kotlin
+
+val dateFormat = SimpleDateFormat("HH:mm:ss:SSS")
+val now = {
+    dateFormat.format(Date(System.currentTimeMillis()))
+}
+fun log(msg: Any?) = println("${now()} [${Thread.currentThread().name}] $msg")
+
+class MyContinuationInterceptor: ContinuationInterceptor {
+    override val key = ContinuationInterceptor
+    override fun <T> interceptContinuation(continuation: Continuation<T>) = MyContinuation(continuation)
+}
+
+class MyContinuation<T>(val continuation: Continuation<T>): Continuation<T> {
+    override val context = continuation.context
+    override fun resumeWith(result: Result<T>) {
+        log("<MyContinuation> $result" )
+        continuation.resumeWith(result)
+    }
+}
+
+```
+
+
+
+
+---
+
+# 线程 vs 协程
+
+
+
+
 
 <!-- https://sli.dev/guide/animations.html#click-animations -->
 <img
@@ -123,6 +467,8 @@ transition: slide-up
   src="https://sli.dev/assets/arrow-bottom-left.svg"
 />
 <p v-after class="absolute bottom-23 left-45 opacity-30 transform -rotate-10">Here!</p>
+
+
 
 ---
 layout: image-right
