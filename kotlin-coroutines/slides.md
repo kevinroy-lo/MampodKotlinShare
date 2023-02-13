@@ -1,32 +1,22 @@
 ---
-# try also 'default' to start simple
 theme: seriph
-# random image from a curated Unsplash collection by Anthony
-# like them? see https://unsplash.com/collections/94734566/slidev
 background: https://source.unsplash.com/collection/94734566/1920x1080
-# apply any windi css classes to the current slide
-class: 'text-center'
-# https://sli.dev/custom/highlighters.html
+class: text-center
 highlighter: shiki
-# show line numbers in code blocks
 lineNumbers: false
-# some information about the slides, markdown enabled
 info: |
   ## Slidev Starter Template
   Presentation slides for developers.
 
   Learn more at [Sli.dev](https://sli.dev)
-# persist drawings in exports and build
 drawings:
   persist: false
-# page transition
 transition: slide-left
-# use UnoCSS
 css: unocss
+title: 玩转Kotlin协程
 ---
 
 # 玩转Kotlin协程
-
 
 
 课件：[PPT](https://github.com/kevinroy-lo/MampodKotlinShare/tree/main/kotlin-coroutines)   &   [Code](https://github.com/kevinroy-lo/MampodKotlinShare/tree/main/code)
@@ -47,8 +37,15 @@ css: unocss
 </div>
 
 <!--
-这里备注：可以在播放的时候准备好讲述词
+大家好我是深圳产研部门Android的罗广荣
 
+compose分享变成 -> kotlin协程
+原因：
+  - Compose受众太小，只是Android客户端的一个UI框架
+  - Koltin成为Android开发的官方语言，协程也是现如今开发Android主流框架
+- 以前也有不太懂的地方，比如协程异常。探讨交流。
+
+PPT 及 示例 以及 示例代码，可以在https://github.com/kevinroy-lo/MampodKotlinShare/ 下载。
 -->
 
 ---
@@ -102,7 +99,9 @@ h1 {
 </style>
 
 <!--
-Here is another comment.
+首先看一下协程的定义
+- 非抢占式，线程受系统的调度，争抢CPU的运行时间
+- 协作式，得益于结构化并发，同一件事情，可以不线程中执行，最后在工作线程中恢复
 -->
 
 ---
@@ -141,6 +140,16 @@ fun main() = runBlocking {
 ```
 </v-after>
 
+
+<!-- 
+runBlocking 没有默认的调度器，连接Kotlin与协程世界
+
+常用作用域
+MainScope
+lifecycleScope
+viewModelScope
+ -->
+
 ---
 transition: slide-up
 ---
@@ -164,7 +173,6 @@ fun main() = runBlocking {
 </v-after>
 ---
 
-
 ### 协程启动模式
 <br>
 
@@ -185,6 +193,10 @@ public fun CoroutineScope.launch(
 - 🤹 **ATOMIC**  - *立即执行协程体，但在开始运行之前无法取消*
 - 🎥 **UNDISPATCHED** - *立即在当前线程执行协程体，直到第一个suspend调用*
 
+<!--
+平常使用时，直接定义协程体，其实还有其他的两个参数
+1、 3、 4 比较容易搞混
+-->
 
 ---
 
@@ -492,14 +504,21 @@ scope.launch(handler1){}
 
 **🧐思考** 可以try-catch住吗？
 ```kotlin
-    try {
-        CoroutineScope(EmptyCoroutineContext).launch {
-            throw RuntimeException()
-        }.join()
-    } catch (e: Exception) {
-        log("catch exception :$e")
+fun main() {
+    runBlocking {
+        try {
+            CoroutineScope(EmptyCoroutineContext).launch {
+                throw RuntimeException()
+            }.join()
+        } catch (e: Exception) { }
     }
+}
 ```
+
+<!--
+开胃小菜，也是最容易犯错的。这里是catch不住的。
+并且报Exception in thread "DefaultDispatcher-worker-1"
+-->
 
 ---
 
@@ -529,12 +548,11 @@ log(2)
 - 由于协程的异常传播路径为为 handler1（根协程）> handler2(根协程域) > Java处理
 - 由于异常产生，其他子协程和兄弟协程都被取消了
 
+<!--
+前面我们知道CoroutineExceptionHandler 来捕获异常，因为向上传播的属性， handler 始终不会被调用到
 
-
-<!--因为向上传播的属性， handler 始终不会被调用到
-
- 由于发生异常，导致协程域内的子协程都被取消 -->
-
+ 由于发生异常，导致协程域内的子协程都被取消
+-->
 
 ---
 layout: two-cols

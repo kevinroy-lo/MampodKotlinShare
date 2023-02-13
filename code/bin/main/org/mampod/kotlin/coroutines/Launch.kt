@@ -1,9 +1,7 @@
 package org.mampod.kotlin.coroutines
 
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlin.coroutines.EmptyCoroutineContext
 
 // 1、DEFAULT
 //suspend fun main() {
@@ -41,14 +39,34 @@ import kotlinx.coroutines.launch
 //}
 
 // 4、UNDISPATCHED
-suspend fun main() {
-    log(1)
-    val job = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED) {
-        log(2)
-        delay(100)
-        log(3)
+//suspend fun main() {
+//    log(1)
+//    val job = GlobalScope.launch(start = CoroutineStart.UNDISPATCHED) {
+//        log(2)
+//        delay(100)
+//        log(3)
+//    }
+//    log(4)
+//    job.join()
+//    log(5)
+//}
+
+//fun main() = runBlocking {
+//    val job = async {
+//        println("start -> ${Thread.currentThread().name}")
+//        delay(1000)
+//        log(2)
+//    }
+////    job.await()
+//    println("start -> ${Thread.currentThread().name}")
+//}
+
+fun main() {
+    runBlocking {
+        try {
+            CoroutineScope(EmptyCoroutineContext).launch {
+                throw RuntimeException()
+            }.join()
+        } catch (e: Exception) { }
     }
-    log(4)
-    job.join()
-    log(5)
 }
